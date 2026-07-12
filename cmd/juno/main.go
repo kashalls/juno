@@ -44,7 +44,7 @@ func run() error {
 
 	hub := lanyard.NewHub(store)
 
-	router := api.NewJunoRouter(api.JunoRouterConfig{
+	router := api.NewRouter(api.RouterConfig{
 		Store:             store,
 		DiscordUserID:     cfg.DiscordUserID,
 		Hub:               hub,
