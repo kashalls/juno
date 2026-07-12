@@ -4,14 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
-
-	"github.com/kashalls/juno/internal/discord"
+	"github.com/kashalls/juno/internal/presence"
 )
 
 type discordAPI struct {
-	store  *discord.Store
-	userID string
+	store *presence.Store
 }
 
 type successResponse struct {
@@ -24,13 +21,7 @@ type errorResponse struct {
 	Error   string `json:"error"`
 }
 
-func (d *discordAPI) getUser(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	if id != d.userID {
-		writeJSON(w, http.StatusNotFound, errorResponse{Success: false, Error: "user not found"})
-		return
-	}
-
+func (d *discordAPI) getMe(w http.ResponseWriter, r *http.Request) {
 	presence := d.store.Get()
 	if presence == nil {
 		writeJSON(w, http.StatusServiceUnavailable, errorResponse{Success: false, Error: "presence not yet available"})

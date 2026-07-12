@@ -2,17 +2,22 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/kashalls/juno/internal/api"
+	"github.com/kashalls/juno/internal/bot"
 	"github.com/kashalls/juno/internal/config"
-	"github.com/kashalls/juno/internal/discord"
+	"github.com/kashalls/juno/internal/db"
 	"github.com/kashalls/juno/internal/lanyard"
+	"github.com/kashalls/juno/internal/presence"
+	"github.com/kashalls/juno/internal/tempvoice"
 )
 
 func main() {
@@ -31,22 +36,44 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	store := discord.NewStore()
-
-	discordClient, err := discord.NewClient(cfg.DiscordBotToken, cfg.DiscordUserID, cfg.DiscordGuildID, store)
+	if dir := filepath.Dir(cfg.DBPath); dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("create db directory: %w", err)
+		}
+	}
+	database, err := db.Open(ctx, cfg.DBPath)
 	if err != nil {
 		return err
 	}
-	if err := discordClient.Open(); err != nil {
+	// b.Close() (deferred below, registered after this) stops the gateway
+	// session before the database closes, so no in-flight handler can write
+	// to a closed DB - Go defers run LIFO.
+	defer database.Close()
+
+	store := presence.NewStore()
+
+	b, err := bot.New(cfg.DiscordBotToken)
+	if err != nil {
 		return err
 	}
-	defer discordClient.Close()
+	if err := b.Use(presence.NewFeature(cfg.DiscordUserID, cfg.DiscordGuildID, store)); err != nil {
+		return err
+	}
+	if err := b.Use(tempvoice.New(database)); err != nil {
+		return err
+	}
+	if err := b.Open(ctx); err != nil {
+		return err
+	}
+	defer b.Close()
+
+	cleanup := tempvoice.NewCleanupWorker(b.Session, database)
+	go cleanup.Run(ctx)
 
 	hub := lanyard.NewHub(store)
 
 	router := api.NewRouter(api.RouterConfig{
 		Store:             store,
-		DiscordUserID:     cfg.DiscordUserID,
 		Hub:               hub,
 		TrustedProxyCIDRs: cfg.TrustedProxyCIDRs,
 	})

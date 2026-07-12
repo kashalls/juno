@@ -7,7 +7,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/kashalls/juno/internal/discord"
+	"github.com/kashalls/juno/internal/presence"
 )
 
 const heartbeatInterval = 30 * time.Second
@@ -19,10 +19,10 @@ var upgrader = websocket.Upgrader{
 }
 
 type Hub struct {
-	store *discord.Store
+	store *presence.Store
 }
 
-func NewHub(store *discord.Store) *Hub {
+func NewHub(store *presence.Store) *Hub {
 	return &Hub{store: store}
 }
 

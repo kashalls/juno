@@ -1,4 +1,4 @@
-package discord
+package presence
 
 import "sync"
 

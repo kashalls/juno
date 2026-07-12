@@ -7,19 +7,18 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/kashalls/juno/internal/discord"
 	"github.com/kashalls/juno/internal/lanyard"
+	"github.com/kashalls/juno/internal/presence"
 )
 
 type RouterConfig struct {
-	Store             *discord.Store
-	DiscordUserID     string
+	Store             *presence.Store
 	Hub               *lanyard.Hub
 	TrustedProxyCIDRs []string
 }
 
-// NewRouter serves the Discord/Lanyard presence API: GET /v1/users/{id}
-// and the Lanyard-protocol WebSocket at /socket.
+// NewRouter serves the Discord/Lanyard presence API: GET /api/users/me
+// and the Lanyard-protocol WebSocket at /api/socket.
 func NewRouter(cfg RouterConfig) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -34,8 +33,8 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 	r.Get("/healthz", healthHandler)
 
-	d := &discordAPI{store: cfg.Store, userID: cfg.DiscordUserID}
-	r.Get("/api/users/{id}", d.getUser)
+	d := &discordAPI{store: cfg.Store}
+	r.Get("/api/users/me", d.getMe)
 	r.Get("/api/socket", cfg.Hub.ServeWS)
 
 	return r

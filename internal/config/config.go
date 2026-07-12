@@ -15,6 +15,7 @@ type JunoConfig struct {
 	DiscordUserID     string
 	DiscordGuildID    string
 	TrustedProxyCIDRs []string
+	DBPath            string
 }
 
 func LoadJuno() (*JunoConfig, error) {
@@ -24,6 +25,7 @@ func LoadJuno() (*JunoConfig, error) {
 		DiscordUserID:     os.Getenv("DISCORD_USER_ID"),
 		DiscordGuildID:    os.Getenv("DISCORD_GUILD_ID"),
 		TrustedProxyCIDRs: parseCIDRList(os.Getenv("TRUSTED_PROXY_CIDRS")),
+		DBPath:            getEnvDefault("DB_PATH", "./data/juno.db"),
 	}
 
 	var missing []string

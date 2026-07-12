@@ -26,7 +26,10 @@ RUN apk add --no-cache ca-certificates wget && \
 WORKDIR /app
 
 ENV PORT=8080
+ENV DB_PATH=/app/data/juno.db
 EXPOSE 8080
+
+RUN mkdir -p /app/data && chown juno:juno /app/data
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD wget -q -O- http://localhost:${PORT}/healthz || exit 1
