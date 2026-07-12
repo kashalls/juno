@@ -35,8 +35,8 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	r.Get("/healthz", healthHandler)
 
 	d := &discordAPI{store: cfg.Store, userID: cfg.DiscordUserID}
-	r.Get("/v1/users/{id}", d.getUser)
-	r.Get("/socket", cfg.Hub.ServeWS)
+	r.Get("/api/users/{id}", d.getUser)
+	r.Get("/api/socket", cfg.Hub.ServeWS)
 
 	return r
 }
