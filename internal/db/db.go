@@ -1,5 +1,5 @@
-// Package db provides juno's embedded persistence layer: per-guild feature
-// settings and state that must survive process restarts.
+// Package db provides juno's embedded persistence layer: feature state
+// (temp voice channel bookkeeping) that must survive process restarts.
 package db
 
 import (

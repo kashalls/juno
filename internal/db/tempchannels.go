@@ -47,22 +47,21 @@ func (d *DB) GetTempChannel(ctx context.Context, channelID string) (*TempChannel
 	return &tc, nil
 }
 
-// GetTempChannelByOwnerAndHub finds a still-tracked temp channel the owner
-// already has open from the given hub, if any. Used to dedupe rapid/duplicate
-// join events instead of spawning a second channel. Returns (nil, nil) if
-// none exists.
-func (d *DB) GetTempChannelByOwnerAndHub(ctx context.Context, ownerID, hubChannelID string) (*TempChannel, error) {
+// GetTempChannelByOwner finds a still-tracked temp channel the owner already
+// has open, if any. Used to dedupe rapid/duplicate join events instead of
+// spawning a second channel. Returns (nil, nil) if none exists.
+func (d *DB) GetTempChannelByOwner(ctx context.Context, ownerID string) (*TempChannel, error) {
 	row := d.conn.QueryRowContext(ctx, `
 		SELECT channel_id, guild_id, hub_channel_id, owner_id, grace_period_seconds, empty_since
-		FROM temp_channels WHERE owner_id = ? AND hub_channel_id = ?
-	`, ownerID, hubChannelID)
+		FROM temp_channels WHERE owner_id = ?
+	`, ownerID)
 
 	tc, err := scanTempChannel(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("get temp channel by owner and hub: %w", err)
+		return nil, fmt.Errorf("get temp channel by owner: %w", err)
 	}
 	return &tc, nil
 }
@@ -116,6 +115,10 @@ func (d *DB) ListExpired(ctx context.Context, now time.Time) ([]TempChannel, err
 		}
 	}
 	return expired, rows.Err()
+}
+
+type rowScanner interface {
+	Scan(dest ...any) error
 }
 
 func scanTempChannel(row rowScanner) (TempChannel, error) {

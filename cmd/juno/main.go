@@ -59,14 +59,21 @@ func run() error {
 	if err := b.Use(presence.NewFeature(cfg.DiscordUserID, cfg.DiscordGuildID, store)); err != nil {
 		return err
 	}
-	if err := b.Use(tempvoice.New(database)); err != nil {
-		return err
+	if cfg.VoiceHubChannelID != "" {
+		if err := b.Use(tempvoice.New(database, tempvoice.Config{
+			HubChannelID: cfg.VoiceHubChannelID,
+			CategoryID:   cfg.VoiceHubCategoryID,
+		})); err != nil {
+			return err
+		}
 	}
 	if err := b.Open(ctx); err != nil {
 		return err
 	}
 	defer b.Close()
 
+	// The cleanup worker runs even when the hub is unset so temp channels
+	// left over from a previous configuration still get deleted.
 	cleanup := tempvoice.NewCleanupWorker(b.Session, database)
 	go cleanup.Run(ctx)
 

@@ -16,16 +16,25 @@ type JunoConfig struct {
 	DiscordGuildID    string
 	TrustedProxyCIDRs []string
 	DBPath            string
+
+	// VoiceHubChannelID is the join-to-create hub voice channel. Empty
+	// disables the temp voice channel feature.
+	VoiceHubChannelID string
+	// VoiceHubCategoryID is where temp channels are created; defaults to
+	// the hub channel's own category.
+	VoiceHubCategoryID string
 }
 
 func LoadJuno() (*JunoConfig, error) {
 	cfg := &JunoConfig{
-		Port:              getEnvDefault("PORT", "8080"),
-		DiscordBotToken:   os.Getenv("DISCORD_BOT_TOKEN"),
-		DiscordUserID:     os.Getenv("DISCORD_USER_ID"),
-		DiscordGuildID:    os.Getenv("DISCORD_GUILD_ID"),
-		TrustedProxyCIDRs: parseCIDRList(os.Getenv("TRUSTED_PROXY_CIDRS")),
-		DBPath:            getEnvDefault("DB_PATH", "./data/juno.db"),
+		Port:               getEnvDefault("PORT", "8080"),
+		DiscordBotToken:    os.Getenv("DISCORD_BOT_TOKEN"),
+		DiscordUserID:      os.Getenv("DISCORD_USER_ID"),
+		DiscordGuildID:     os.Getenv("DISCORD_GUILD_ID"),
+		TrustedProxyCIDRs:  parseCIDRList(os.Getenv("TRUSTED_PROXY_CIDRS")),
+		DBPath:             getEnvDefault("DB_PATH", "./data/juno.db"),
+		VoiceHubChannelID:  os.Getenv("VOICE_HUB_CHANNEL_ID"),
+		VoiceHubCategoryID: os.Getenv("VOICE_HUB_CATEGORY_ID"),
 	}
 
 	var missing []string

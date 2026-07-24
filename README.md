@@ -3,13 +3,15 @@
 A Discord bot with two independent features:
 
 - A [Lanyard](https://github.com/Phineas/lanyard)-compatible REST + WebSocket feed of your live Discord status, scoped to a single Discord user.
-- Join-to-create temporary voice channels, configurable per guild.
+- Join-to-create temporary voice channels for a single "hub" channel.
+
+Juno is built for exactly one guild: everything is configured through environment variables, with no in-Discord configuration commands.
 
 ## How it works
 
-A bot account joins your server(s) and, with the Presence and Server Members privileged intents enabled, receives real-time presence updates from Discord's Gateway for your user ID. Juno caches your latest presence in memory and serves it over REST and a Lanyard-shaped WebSocket protocol.
+A bot account joins your server and, with the Presence and Server Members privileged intents enabled, receives real-time presence updates from Discord's Gateway for your user ID. Juno caches your latest presence in memory and serves it over REST and a Lanyard-shaped WebSocket protocol.
 
-Independently, in any guild where an admin configures a "hub" voice channel via `/voice-hub add`, members who join that channel get their own temporary voice channel (with permission to manage it), and are moved into it automatically. The channel is deleted again once it's been empty for that hub's configured grace period. Settings are stored per guild in an embedded SQLite database, so they survive restarts and are editable at runtime without a redeploy.
+Independently, members who join the hub voice channel (`VOICE_HUB_CHANNEL_ID`) get their own temporary voice channel (with permission to manage it), and are moved into it automatically. The channel is deleted again once it's been empty for five minutes. Open temp channels are tracked in an embedded SQLite database so cleanup survives restarts.
 
 ## One-time setup
 
@@ -17,7 +19,7 @@ Independently, in any guild where an admin configures a "hub" voice channel via 
 
 1. Create an application at the [Discord Developer Portal](https://discord.com/developers/applications) and add a Bot user.
 2. Under Bot settings, enable the **Presence Intent** and **Server Members Intent** privileged intents.
-3. Invite the bot with the `bot` and `applications.commands` OAuth2 scopes, and the **Manage Channels** and **Move Members** bot permissions (needed for the temp voice channel feature; the presence feature needs no permissions).
+3. Invite the bot with the `bot` OAuth2 scope, and the **Manage Channels** and **Move Members** bot permissions (needed for the temp voice channel feature; the presence feature needs no permissions).
 4. Copy the bot token into `DISCORD_BOT_TOKEN`.
 5. Enable Developer Mode in Discord, right-click your own name, and copy your user ID into `DISCORD_USER_ID`.
 
@@ -31,6 +33,8 @@ DISCORD_BOT_TOKEN=
 DISCORD_USER_ID=
 DISCORD_GUILD_ID=
 TRUSTED_PROXY_CIDRS=
+VOICE_HUB_CHANNEL_ID=
+VOICE_HUB_CATEGORY_ID=
 DB_PATH=./data/juno.db
 ```
 
@@ -46,12 +50,9 @@ By default the service listens on host port 8080, with a healthcheck at `curl ht
 
 ## Join-to-create voice channels
 
-Any server member with **Manage Server** can configure hub channels:
+Set `VOICE_HUB_CHANNEL_ID` to a voice channel's ID and members who join it get their own temp channel named `{user}'s Channel`, created under the hub's category (or `VOICE_HUB_CATEGORY_ID` if set). Once a temp channel has been empty for five minutes, it is deleted. Leave `VOICE_HUB_CHANNEL_ID` blank to disable the feature.
 
-- `/voice-hub add hub-channel:<voice channel> [category] [name-template] [grace-period-seconds]` — join `hub-channel` to spawn a temp channel. `category` defaults to the hub's own category. `name-template` defaults to `{user}'s Channel`, where `{user}` is replaced with the joining member's display name. `grace-period-seconds` defaults to 300.
-- `/voice-hub remove hub-channel:<voice channel>` — stop treating a channel as a hub. Temp channels already spawned from it are unaffected and still get cleaned up normally.
-- `/voice-hub list` — show configured hubs for the guild.
-- `/voice-hub grace-period hub-channel:<voice channel> seconds:<n>` — change how long a hub's temp channels wait, once empty, before deletion.
+The channel name template and grace period are constants in `internal/tempvoice/feature.go`.
 
 ## API reference
 

@@ -1,26 +1,39 @@
-// Package tempvoice implements join-to-create temporary voice channels:
-// admins configure "hub" channels via the /voice-hub slash command, and
-// members who join a hub get their own voice channel, which is deleted
-// again after it sits empty for a configurable grace period.
+// Package tempvoice implements join-to-create temporary voice channels for
+// a single, statically configured hub channel: members who join the hub get
+// their own voice channel, which is deleted again after it sits empty for
+// the grace period.
 package tempvoice
 
 import (
+	"time"
+
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/kashalls/juno/internal/db"
 )
 
 const (
-	defaultNameTemplate = "{user}'s Channel"
-	defaultGracePeriod  = 300 // seconds
+	nameTemplate = "{user}'s Channel"
+	gracePeriod  = 5 * time.Minute
 )
 
-type Feature struct {
-	db *db.DB
+// Config points the feature at the one hub channel it watches.
+type Config struct {
+	// HubChannelID is the voice channel members join to get their own
+	// temp channel.
+	HubChannelID string
+	// CategoryID is where temp channels are created. Optional: defaults to
+	// the hub channel's own category.
+	CategoryID string
 }
 
-func New(database *db.DB) *Feature {
-	return &Feature{db: database}
+type Feature struct {
+	db  *db.DB
+	cfg Config
+}
+
+func New(database *db.DB, cfg Config) *Feature {
+	return &Feature{db: database, cfg: cfg}
 }
 
 func (f *Feature) Name() string { return "tempvoice" }
@@ -32,8 +45,4 @@ func (f *Feature) Intents() discordgo.Intent {
 func (f *Feature) Register(s *discordgo.Session) error {
 	s.AddHandler(f.onVoiceStateUpdate)
 	return nil
-}
-
-func (f *Feature) Commands() []*discordgo.ApplicationCommand {
-	return []*discordgo.ApplicationCommand{voiceHubCommand}
 }

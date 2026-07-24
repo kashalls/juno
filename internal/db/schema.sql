@@ -1,15 +1,6 @@
-CREATE TABLE IF NOT EXISTS voice_hubs (
-    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-    guild_id             TEXT NOT NULL,
-    hub_channel_id       TEXT NOT NULL,
-    category_id          TEXT NOT NULL DEFAULT '',
-    name_template        TEXT NOT NULL DEFAULT '{user}''s Channel',
-    grace_period_seconds INTEGER NOT NULL DEFAULT 300,
-    created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (guild_id, hub_channel_id)
-);
-CREATE INDEX IF NOT EXISTS idx_voice_hubs_guild ON voice_hubs(guild_id);
+-- Hub settings moved to environment variables; drop the table older
+-- versions used to store them.
+DROP TABLE IF EXISTS voice_hubs;
 
 CREATE TABLE IF NOT EXISTS temp_channels (
     channel_id           TEXT PRIMARY KEY,

@@ -38,8 +38,6 @@ func (f *Feature) Register(s *discordgo.Session) error {
 	return nil
 }
 
-func (f *Feature) Commands() []*discordgo.ApplicationCommand { return nil }
-
 func (f *Feature) onGuildCreate(s *discordgo.Session, g *discordgo.GuildCreate) {
 	if f.guildID != "" && g.ID != f.guildID {
 		return

@@ -2,6 +2,7 @@ package tempvoice
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -15,7 +16,7 @@ import (
 const maxChannelNameLength = 100
 
 // onVoiceStateUpdate handles both halves of the join-to-create lifecycle:
-// joining a hub spawns (or reuses) a temp channel, and leaving a tracked
+// joining the hub spawns (or reuses) a temp channel, and leaving a tracked
 // temp channel updates its empty/occupied bookkeeping for the grace-period
 // cleanup worker.
 func (f *Feature) onVoiceStateUpdate(s *discordgo.Session, v *discordgo.VoiceStateUpdate) {
@@ -35,24 +36,18 @@ func (f *Feature) onVoiceStateUpdate(s *discordgo.Session, v *discordgo.VoiceSta
 }
 
 func (f *Feature) handleJoin(ctx context.Context, s *discordgo.Session, vs *discordgo.VoiceState) {
-	hub, err := f.db.GetHubByChannelID(ctx, vs.GuildID, vs.ChannelID)
-	if err != nil {
-		slog.Error("failed to look up voice hub", "channel_id", vs.ChannelID, "err", err)
-		return
-	}
-	if hub == nil {
+	if vs.ChannelID != f.cfg.HubChannelID {
 		return
 	}
 
-	existing, err := f.db.GetTempChannelByOwnerAndHub(ctx, vs.UserID, hub.HubChannelID)
+	existing, err := f.db.GetTempChannelByOwner(ctx, vs.UserID)
 	if err != nil {
 		slog.Error("failed to check existing temp channel", "user_id", vs.UserID, "err", err)
 		return
 	}
 	if existing != nil {
 		// Duplicate/reconnect join event for a channel the user already
-		// owns from this hub - move them back in rather than spawning a
-		// second channel.
+		// owns - move them back in rather than spawning a second channel.
 		channelID := existing.ChannelID
 		if err := s.GuildMemberMove(vs.GuildID, vs.UserID, &channelID); err != nil {
 			slog.Error("failed to move member into existing temp channel", "channel_id", channelID, "err", err)
@@ -60,16 +55,22 @@ func (f *Feature) handleJoin(ctx context.Context, s *discordgo.Session, vs *disc
 		return
 	}
 
-	overwrites, err := f.ownerOverwrites(s, hub.CategoryID, vs.UserID)
+	categoryID, err := f.categoryID(s)
 	if err != nil {
-		slog.Error("failed to build permission overwrites", "category_id", hub.CategoryID, "err", err)
+		slog.Error("failed to resolve temp channel category", "err", err)
+		return
+	}
+
+	overwrites, err := f.ownerOverwrites(s, categoryID, vs.UserID)
+	if err != nil {
+		slog.Error("failed to build permission overwrites", "category_id", categoryID, "err", err)
 		return
 	}
 
 	channel, err := s.GuildChannelCreateComplex(vs.GuildID, discordgo.GuildChannelCreateData{
-		Name:                 buildChannelName(hub.NameTemplate, vs.Member),
+		Name:                 buildChannelName(vs.Member),
 		Type:                 discordgo.ChannelTypeGuildVoice,
-		ParentID:             hub.CategoryID,
+		ParentID:             categoryID,
 		PermissionOverwrites: overwrites,
 	})
 	if err != nil {
@@ -80,9 +81,9 @@ func (f *Feature) handleJoin(ctx context.Context, s *discordgo.Session, vs *disc
 	if err := f.db.InsertTempChannel(ctx, db.TempChannel{
 		ChannelID:    channel.ID,
 		GuildID:      vs.GuildID,
-		HubChannelID: hub.HubChannelID,
+		HubChannelID: f.cfg.HubChannelID,
 		OwnerID:      vs.UserID,
-		GracePeriod:  hub.GracePeriod,
+		GracePeriod:  gracePeriod,
 	}); err != nil {
 		slog.Error("failed to persist temp channel", "channel_id", channel.ID, "err", err)
 	}
@@ -113,6 +114,26 @@ func (f *Feature) handleLeave(ctx context.Context, s *discordgo.Session, before 
 	if err := f.db.MarkEmpty(ctx, before.ChannelID, time.Now()); err != nil {
 		slog.Error("failed to mark temp channel empty", "channel_id", before.ChannelID, "err", err)
 	}
+}
+
+// categoryID returns the category temp channels are created in: the
+// configured one if set, otherwise the hub channel's own parent category.
+func (f *Feature) categoryID(s *discordgo.Session) (string, error) {
+	if f.cfg.CategoryID != "" {
+		return f.cfg.CategoryID, nil
+	}
+
+	hub, err := s.State.Channel(f.cfg.HubChannelID)
+	if err != nil {
+		hub, err = s.Channel(f.cfg.HubChannelID)
+		if err != nil {
+			return "", fmt.Errorf("fetch hub channel %s: %w", f.cfg.HubChannelID, err)
+		}
+	}
+	if hub.ParentID == "" {
+		return "", errors.New("hub channel has no parent category; set VOICE_HUB_CATEGORY_ID")
+	}
+	return hub.ParentID, nil
 }
 
 // channelOccupied reports whether any member remains in channelID. On a
@@ -155,11 +176,8 @@ func (f *Feature) ownerOverwrites(s *discordgo.Session, categoryID, ownerID stri
 	return overwrites, nil
 }
 
-func buildChannelName(template string, member *discordgo.Member) string {
-	name := template
-	if name == "" {
-		name = defaultNameTemplate
-	}
+func buildChannelName(member *discordgo.Member) string {
+	name := nameTemplate
 	if member != nil {
 		name = strings.ReplaceAll(name, "{user}", member.DisplayName())
 	}
