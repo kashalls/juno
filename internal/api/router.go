@@ -32,6 +32,8 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	r.Use(middleware.Timeout(30 * time.Second))
 
 	r.Get("/healthz", healthHandler)
+	r.Get("/terms", termsHandler)
+	r.Get("/privacy", privacyHandler)
 
 	d := &discordAPI{store: cfg.Store}
 	r.Get("/api/users/me", d.getMe)
