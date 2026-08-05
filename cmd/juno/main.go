@@ -12,11 +12,13 @@ import (
 	"time"
 
 	"github.com/kashalls/juno/internal/api"
+	"github.com/kashalls/juno/internal/appicons"
 	"github.com/kashalls/juno/internal/bot"
 	"github.com/kashalls/juno/internal/config"
 	"github.com/kashalls/juno/internal/db"
 	"github.com/kashalls/juno/internal/lanyard"
 	"github.com/kashalls/juno/internal/presence"
+	"github.com/kashalls/juno/internal/profile"
 	"github.com/kashalls/juno/internal/tempvoice"
 )
 
@@ -79,9 +81,17 @@ func run() error {
 
 	hub := lanyard.NewHub(store)
 
+	profileStore := profile.NewStore()
+	profileWorker := profile.NewRefreshWorker(b.Session, cfg.DiscordUserID, cfg.DiscordGuildID, profileStore)
+	go profileWorker.Run(ctx)
+
+	appIconResolver := appicons.NewResolver()
+
 	router := api.NewRouter(api.RouterConfig{
 		Store:             store,
 		Hub:               hub,
+		ProfileStore:      profileStore,
+		AppIconResolver:   appIconResolver,
 		TrustedProxyCIDRs: cfg.TrustedProxyCIDRs,
 	})
 

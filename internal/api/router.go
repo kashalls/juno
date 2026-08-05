@@ -7,18 +7,24 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/kashalls/juno/internal/appicons"
 	"github.com/kashalls/juno/internal/lanyard"
 	"github.com/kashalls/juno/internal/presence"
+	"github.com/kashalls/juno/internal/profile"
 )
 
 type RouterConfig struct {
 	Store             *presence.Store
 	Hub               *lanyard.Hub
+	ProfileStore      *profile.Store
+	AppIconResolver   *appicons.Resolver
 	TrustedProxyCIDRs []string
 }
 
 // NewRouter serves the Discord/Lanyard presence API: GET /api/users/me
-// and the Lanyard-protocol WebSocket at /api/socket.
+// and the Lanyard-protocol WebSocket at /api/socket, plus GET /api/profile
+// for the tracked user's cached Discord profile (bio, badges, banner, ...)
+// and GET /api/app-icons/{id} to resolve any application's icon.
 func NewRouter(cfg RouterConfig) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -38,6 +44,12 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	d := &discordAPI{store: cfg.Store}
 	r.Get("/api/users/me", d.getMe)
 	r.Get("/api/socket", cfg.Hub.ServeWS)
+
+	p := &profileAPI{store: cfg.ProfileStore}
+	r.Get("/api/profile", p.getProfile)
+
+	a := &appIconAPI{resolver: cfg.AppIconResolver}
+	r.Get("/api/app-icons/{id}", a.getAppIcon)
 
 	return r
 }
