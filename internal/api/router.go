@@ -39,7 +39,9 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 	r.Get("/healthz", healthHandler)
 	r.Get("/api/terms", termsHandler)
+	r.Head("/api/terms", termsHandler)
 	r.Get("/api/privacy", privacyHandler)
+	r.Head("/api/privacy", privacyHandler)
 
 	d := &discordAPI{store: cfg.Store}
 	r.Get("/api/users/me", d.getMe)
