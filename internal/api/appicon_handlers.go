@@ -13,9 +13,8 @@ type appIconAPI struct {
 	resolver *appicons.Resolver
 }
 
-// getAppIcon resolves a Discord application's icon and redirects to it, so
-// it's a drop-in replacement for third-party proxies of Discord's
-// application RPC + CDN lookup (e.g. dcdn.dstn.to/app-icons/{id}).
+// getAppIcon resolves a Discord application's icon via the application RPC
+// endpoint and redirects to it on Discord's CDN.
 func (a *appIconAPI) getAppIcon(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "id")
 	if !isSnowflake(appID) {
