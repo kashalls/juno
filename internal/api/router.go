@@ -2,10 +2,13 @@ package api
 
 import (
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 
 	"github.com/kashalls/juno/internal/appicons"
 	"github.com/kashalls/juno/internal/lanyard"
@@ -33,6 +36,10 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	} else {
 		r.Use(middleware.ClientIPFromRemoteAddr)
 	}
+	r.Use(cors.Handler(cors.Options{
+		AllowedMethods:  []string{"GET", "HEAD"},
+		AllowOriginFunc: allowedOrigin,
+	}))
 	r.Use(skipHealthzLogger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
@@ -69,4 +76,15 @@ func skipHealthzLogger(next http.Handler) http.Handler {
 		}
 		logged.ServeHTTP(w, r)
 	})
+}
+
+// allowedOrigin lets the site read the API from the browser: any ok8.sh
+// origin (apex or subdomain), or any origin on port 3000 for local dev.
+func allowedOrigin(_ *http.Request, origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	host := u.Hostname()
+	return host == "ok8.sh" || strings.HasSuffix(host, ".ok8.sh") || u.Port() == "3000"
 }
