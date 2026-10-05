@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"time"
 
@@ -10,18 +11,19 @@ import (
 
 const refreshInterval = 10 * time.Minute
 
-// RefreshWorker periodically fetches the tracked user's Discord profile
-// (Discord's undocumented GET /users/{id}/profile endpoint - bio, badges,
-// banner, connected accounts, etc.) and caches it in Store.
+// RefreshWorker periodically fetches the tracked user's Discord user object
+// (GET /users/{id}: banner, accent colour, avatar decoration, etc.) and
+// caches it in Store. The richer GET /users/{id}/profile (bio, pronouns,
+// connected accounts) rejects bot tokens with code 20001, so those fields
+// aren't available.
 type RefreshWorker struct {
 	session *discordgo.Session
 	userID  string
-	guildID string
 	store   *Store
 }
 
-func NewRefreshWorker(session *discordgo.Session, userID, guildID string, store *Store) *RefreshWorker {
-	return &RefreshWorker{session: session, userID: userID, guildID: guildID, store: store}
+func NewRefreshWorker(session *discordgo.Session, userID string, store *Store) *RefreshWorker {
+	return &RefreshWorker{session: session, userID: userID, store: store}
 }
 
 // Run fetches immediately, then re-fetches every refreshInterval until ctx
@@ -43,15 +45,20 @@ func (w *RefreshWorker) Run(ctx context.Context) {
 }
 
 func (w *RefreshWorker) refresh(ctx context.Context) {
-	endpoint := discordgo.EndpointUser(w.userID) + "/profile"
-	if w.guildID != "" {
-		endpoint += "?guild_id=" + w.guildID
-	}
-
-	body, err := w.session.Request("GET", endpoint, nil, discordgo.WithContext(ctx))
+	body, err := w.session.Request("GET", discordgo.EndpointUser(w.userID), nil, discordgo.WithContext(ctx))
 	if err != nil {
-		slog.Error("failed to fetch discord profile", "user_id", w.userID, "err", err)
+		slog.Error("failed to fetch discord user", "user_id", w.userID, "err", err)
 		return
 	}
-	w.store.Set(body)
+
+	// Wrap it as {"user": ...} so clients written against the profile
+	// endpoint's shape keep reading user.banner etc. unchanged.
+	wrapped, err := json.Marshal(struct {
+		User json.RawMessage `json:"user"`
+	}{User: body})
+	if err != nil {
+		slog.Error("failed to encode discord user", "user_id", w.userID, "err", err)
+		return
+	}
+	w.store.Set(wrapped)
 }
