@@ -82,7 +82,7 @@ func run() error {
 	hub := lanyard.NewHub(store)
 
 	profileStore := profile.NewStore()
-	profileWorker := profile.NewRefreshWorker(b.Session, cfg.DiscordUserID, cfg.DiscordGuildID, profileStore)
+	profileWorker := profile.NewRefreshWorker(b.Session, cfg.DiscordUserID, profileStore)
 	go profileWorker.Run(ctx)
 
 	appIconResolver := appicons.NewResolver()

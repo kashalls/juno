@@ -1,12 +1,12 @@
-// Package profile fetches and caches the tracked user's Discord profile
-// (bio, badges, banner, connected accounts, ...) - a REST-only resource
-// with no gateway push equivalent, so it's refreshed on a timer rather
-// than updated from events like presence.Store.
+// Package profile fetches and caches the tracked user's Discord user object
+// (banner, accent colour, ...) - REST-only data with no gateway push
+// equivalent, so it's refreshed on a timer rather than updated from events
+// like presence.Store.
 package profile
 
 import "sync"
 
-// Store caches the raw JSON body of the last successful profile fetch.
+// Store caches the JSON body of the last successful profile fetch.
 type Store struct {
 	mu   sync.RWMutex
 	last []byte

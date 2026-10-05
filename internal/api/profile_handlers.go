@@ -10,9 +10,10 @@ type profileAPI struct {
 	store *profile.Store
 }
 
-// getProfile serves the tracked user's cached Discord profile response
-// as-is, so it's a drop-in replacement for third-party proxies of
-// Discord's GET /users/{id}/profile endpoint (e.g. dcdn.dstn.to/profile/{id}).
+// getProfile serves the tracked user's cached Discord user object, wrapped
+// as {"user": ...} to match the shape of Discord's GET /users/{id}/profile,
+// minus the profile-only fields bots can't read (bio, pronouns, connected
+// accounts).
 func (p *profileAPI) getProfile(w http.ResponseWriter, r *http.Request) {
 	data := p.store.Get()
 	if data == nil {
