@@ -21,14 +21,14 @@ FROM alpine:3.24
 # aren't kept around to pin against.
 # hadolint ignore=DL3018
 RUN apk add --no-cache ca-certificates && \
-    addgroup -S juno && adduser -S juno -G juno
+    addgroup -S -g 1000 juno && adduser -S -u 1000 -G juno juno
 
 WORKDIR /app
 
 ENV DB_PATH=/app/data/juno.db
 
-RUN mkdir -p /app/data && chown juno:juno /app/data
+RUN mkdir -p /app/data && chown 1000:1000 /app/data
 
 COPY --from=builder /out/juno /app/juno
-USER juno
+USER 1000:1000
 ENTRYPOINT ["/app/juno"]
