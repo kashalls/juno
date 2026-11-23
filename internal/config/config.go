@@ -5,17 +5,12 @@ package config
 import (
 	"fmt"
 	"os"
-	"strings"
 )
 
-// JunoConfig configures the Discord/Lanyard presence server (cmd/juno).
+// JunoConfig configures the Discord bot (cmd/juno).
 type JunoConfig struct {
-	Port              string
-	DiscordBotToken   string
-	DiscordUserID     string
-	DiscordGuildID    string
-	TrustedProxyCIDRs []string
-	DBPath            string
+	DiscordBotToken string
+	DBPath          string
 
 	// VoiceHubChannelID is the join-to-create hub voice channel. Empty
 	// disables the temp voice channel feature.
@@ -27,11 +22,7 @@ type JunoConfig struct {
 
 func LoadJuno() (*JunoConfig, error) {
 	cfg := &JunoConfig{
-		Port:               getEnvDefault("PORT", "8080"),
 		DiscordBotToken:    os.Getenv("DISCORD_BOT_TOKEN"),
-		DiscordUserID:      os.Getenv("DISCORD_USER_ID"),
-		DiscordGuildID:     os.Getenv("DISCORD_GUILD_ID"),
-		TrustedProxyCIDRs:  parseCIDRList(os.Getenv("TRUSTED_PROXY_CIDRS")),
 		DBPath:             getEnvDefault("DB_PATH", "./data/juno.db"),
 		VoiceHubChannelID:  os.Getenv("VOICE_HUB_CHANNEL_ID"),
 		VoiceHubCategoryID: os.Getenv("VOICE_HUB_CATEGORY_ID"),
@@ -40,9 +31,6 @@ func LoadJuno() (*JunoConfig, error) {
 	var missing []string
 	if cfg.DiscordBotToken == "" {
 		missing = append(missing, "DISCORD_BOT_TOKEN")
-	}
-	if cfg.DiscordUserID == "" {
-		missing = append(missing, "DISCORD_USER_ID")
 	}
 	if len(missing) > 0 {
 		return nil, fmt.Errorf("missing required environment variables: %v", missing)
@@ -56,14 +44,4 @@ func getEnvDefault(key, def string) string {
 		return v
 	}
 	return def
-}
-
-func parseCIDRList(v string) []string {
-	var cidrs []string
-	for _, c := range strings.Split(v, ",") {
-		if c = strings.TrimSpace(c); c != "" {
-			cidrs = append(cidrs, c)
-		}
-	}
-	return cidrs
 }

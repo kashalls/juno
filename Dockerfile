@@ -20,19 +20,14 @@ FROM alpine:3.24
 # build whenever Alpine ships an update - unlike Debian/Ubuntu, old versions
 # aren't kept around to pin against.
 # hadolint ignore=DL3018
-RUN apk add --no-cache ca-certificates wget && \
+RUN apk add --no-cache ca-certificates && \
     addgroup -S juno && adduser -S juno -G juno
 
 WORKDIR /app
 
-ENV PORT=8080
 ENV DB_PATH=/app/data/juno.db
-EXPOSE 8080
 
 RUN mkdir -p /app/data && chown juno:juno /app/data
-
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD wget -q -O- http://localhost:${PORT}/healthz || exit 1
 
 COPY --from=builder /out/juno /app/juno
 USER juno

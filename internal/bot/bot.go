@@ -1,5 +1,5 @@
 // Package bot owns the discordgo session lifecycle and lets independent
-// features (presence tracking, temp voice channels, ...) register their own
+// features (temp voice channels, ...) register their own
 // gateway handlers against a single session.
 package bot
 
